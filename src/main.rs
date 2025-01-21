@@ -5,10 +5,34 @@ struct StackMachine {
 
 // Instruction enum to hold different instructions for the Stack Machine
 enum Instruction {
+    // Stack Operations
+
     Push(i32),   // Push a value onto the stack
     Pop,         // Remove the top value
+    // Dup,
+    // Swap,
+    // Rot,
+    // Clear,
+
+    // Arithmetic
     Add,         // Add the top two values
     Sub,         // Subtract the top two values
+    // Mul,
+    // Div,
+    // Rem,
+    // Neg,
+    // Inc,
+    // Dec,
+
+    // Comparison
+    // Eq,
+    // Ne,
+    // Le,
+    // Ge,
+    // Lt,
+    // Gt,
+
+    // I/O
     Print,       // Print the top value
 }
 
@@ -19,8 +43,11 @@ impl StackMachine {
 
     fn execute(&mut self, instruction: Instruction) {
         match instruction {
+            // Stack Operations
             Instruction::Push(value) => self.stack.push(value),
             Instruction::Pop => { self.stack.pop(); }, // Remove the top element
+
+            // Arithmetic
             Instruction::Add => {
                 let b = self.stack.pop().expect("Stack underflow");
                 let a = self.stack.pop().expect("Stack underflow");
@@ -31,6 +58,8 @@ impl StackMachine {
                 let a = self.stack.pop().expect("Stack underflow");
                 self.stack.push(a - b);
             },
+
+            // I/O
             Instruction::Print => {
                 if let Some(top) = self.stack.last() {
                     println!("{}", top);
