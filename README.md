@@ -16,7 +16,7 @@ Arithmetic: `add`, `sub`, `mul`, `div`, `rem`, `neg`, `inc`, `dec`
 
 Comparison: `eq`, `ne`, `le`, `ge`, `lt`, `gt`
 
-Control Flow: `call`, `ret`, `retv`, `jump`, `brt`, `brz`, `halt`, `label`
+Control Flow: `jump`, `brt`, `brz`, `halt`, `label`
 
 Memory: `load`, `save`, `store`, `alloc`, `free`
 
@@ -112,17 +112,6 @@ Debugging: `dump`, `trace`
   *Example*: Stack: `[20, 10]` → `gt` → Stack: `[1]`
 
 ## Control Flow
-- **`call <label>`**  
-  Call a subroutine at the specified label.  
-  *Example*: `call myFunction`
-
-- **`ret`**  
-  Return from a subroutine.
-
-- **`retv <value>`**  
-  Return from a subroutine with a value.  
-  *Example*: `retv 42`
-
 - **`jump <label>`**  
   Jump to the specified label.  
   *Example*: `jump loopStart`
