@@ -11,21 +11,20 @@ fn main() {
         Instruction::Push(20),
         Instruction::Sub,
         Instruction::Print,
-        Instruction::Halt,
+        Instruction::Halt
     ];
 
     let gcd_program = vec![
         // Main Function
         Instruction::Write("\nEuclid's GCD".to_string()), // Output "Euclid's GCD"
         Instruction::Write("\nEnter a number:\t".to_string()), // Prompt for the first number
-        Instruction::Scan,              // Read input
         Instruction::Read,              // Push the first input onto the stack (x)
         Instruction::Write("\nEnter a second number:\t".to_string()), // Prompt for the second number
-        Instruction::Scan,              // Read input
         Instruction::Read,              // Push the second input onto the stack (y)
 
         // Call gcd(x, y)
-        Instruction::Call("gcd".to_string()), // Call the gcd function
+        Instruction::Jump("gcd".to_string()), // Call the gcd function
+        Instruction::Label("result".to_string()),
         Instruction::Write("\nRESULT:\t".to_string()), // Output "RESULT:"
         Instruction::Print,              // Print the result of gcd(x, y)
         Instruction::Write("\n".to_string()), // Output a newline
@@ -33,30 +32,85 @@ fn main() {
 
         // GCD Function
         Instruction::Label("gcd".to_string()), // Label for the gcd function
-        Instruction::Dup,                     // Duplicate the top value (v)
+        Instruction::Dup,
         Instruction::Push(0),                 // Push 0 onto the stack
         Instruction::Eq,                      // Check if v == 0
         Instruction::Brt("gcd_return_u".to_string()), // If true, branch to gcd_return_u
 
+            
+        /*
+        v
+        u
+        -- dup --
+        v
+        v
+        u
+        -- rot --
+        u
+        v
+        v
+        -- dup --
+        u
+        u
+        v
+        v
+        -- rot --
+        v
+        u
+        u
+        v
+        -- dup --
+        v
+        v
+        u
+        u
+        v
+        -- rot --
+        u
+        v
+        v
+        u
+        v
+        --swap--
+        v
+        u
+        v
+        u
+        v
+        -- div --
+        (u/v)
+        v
+        u
+        v
+        -- mul --
+        v * (u/v)
+        u
+        v
+        -- sub --
+        u - (u/v) * v
+        v
+        */
+
+
         // Else branch
-        Instruction::Dup,                     // Duplicate v
-        Instruction::Rot,                     // Bring u below v to the top
-        Instruction::Dup,                     // Duplicate u
-        Instruction::Dup,                     // Duplicate u
-        Instruction::Swap,                    // Swap the top two (u and v)
-        Instruction::Div,                     // Compute u/v
-        Instruction::Mul,                     // Compute (u/v) * v
-        Instruction::Sub,                     // Compute u - (u/v) * v
-        Instruction::Rot,                     // Rotate stack (v becomes the top)
-        Instruction::Call("gcd".to_string()), // Recursive call gcd(v, u - (u/v) * v)
-        Instruction::Ret,                     // Return from function
+        Instruction::Dup,
+        Instruction::Rot,
+        Instruction::Dup,
+        Instruction::Rot,
+        Instruction::Dup,
+        Instruction::Rot,
+        Instruction::Swap,
+        Instruction::Div,
+        Instruction::Mul,
+        Instruction::Sub,
+        Instruction::Jump("gcd".to_string()), // Recursive call gcd(v, u - (u/v) * v)
 
         // Return u branch
         Instruction::Label("gcd_return_u".to_string()), // Label for return u
-        Instruction::Swap,                    // Bring u to the top
-        Instruction::Pop,                     // Remove v
-        Instruction::Ret,                     // Return from function
+        Instruction::Pop, // Remove v
+        Instruction::Jump("result".to_string())
     ];
+
 
     machine.load_program(gcd_program);
     machine.execute();
