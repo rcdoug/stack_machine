@@ -1,16 +1,20 @@
 use std::collections::HashMap;
 
-// Struct to represent Stack Machine
+/// A simple stack machine with I/O buffers for interacting with the UI.
 pub struct StackMachine {
-    stack: Vec<i32>, // The stack holds integers for the machine's operations
-    memory: HashMap<i32, i32>, // A simple key-value store for memory operations
-    labels: HashMap<String, usize>, // Maps labels to their positions in the program
-    program_counter: usize, // Tracks the current instruction to execute
-    program: Vec<Instruction>, // The list of instructions to execute
+    stack: Vec<i32>,
+    memory: HashMap<i32, i32>,
+    labels: HashMap<String, usize>,
+    program_counter: usize,
+    program: Vec<Instruction>,
+    /// Accumulated output messages from the machine.
+    pub output: Vec<String>,
+    /// When set, indicates the machine is waiting for user input.
+    pub input_request: Option<String>,
 }
 
-// Instruction enum to hold different instructions for the Stack Machine
-#[derive(Clone)]
+/// The Instruction enum defines the supported operations.
+#[derive(Clone, Debug)]
 pub enum Instruction {
     // Stack Operations
     Push(i32), Pop, Dup, Swap, Rot, Clear,
@@ -28,7 +32,14 @@ pub enum Instruction {
     Load(i32), Store(i32), Alloc(i32), Free(i32),
 
     // I/O
-    Print, Read, Write(String), Scan,
+    /// Instead of printing directly, the machine will capture this output.
+    Print,
+    /// Instead of reading immediately, the machine will request input from the UI.
+    Read,
+    /// Append a message to the output.
+    Write(String),
+    /// For demonstration, similar to Read.
+    Scan,
 
     // Bitwise/Logical
     And, Or, Xor, Not, Shl, Shr, Bool,
@@ -36,6 +47,7 @@ pub enum Instruction {
     // Debugging
     Dump, Trace(bool),
 }
+
 
 impl StackMachine {
     pub fn new() -> Self {
@@ -45,60 +57,88 @@ impl StackMachine {
             labels: HashMap::new(),
             program_counter: 0,
             program: Vec::new(),
+            output: Vec::new(),
+            input_request: None,
         }
     }
 
+    /// Loads the program and precomputes label positions.
     pub fn load_program(&mut self, program: Vec<Instruction>) {
         self.program = program;
-        self.index_labels(); // Precompute label positions for faster jumps
+        self.index_labels();
     }
 
     fn index_labels(&mut self) {
         for (index, instruction) in self.program.iter().enumerate() {
             if let Instruction::Label(name) = instruction {
-                self.labels.insert(name.clone(), index); // Map label names to their positions
+                self.labels.insert(name.clone(), index);
             }
         }
     }
 
+    /// Steps through one instruction, if available.
     pub fn step(&mut self) {
-        let instruction = self.program[self.program_counter].clone(); // Fetch the next instruction
-        self.program_counter += 1; // Move to the next instruction
-        self.perform_operation(instruction);
+        if self.program_counter < self.program.len() {
+            let instruction = self.program[self.program_counter].clone();
+            self.program_counter += 1;
+            self.perform_operation(instruction);
+        }
     }
+
+    /// Executes instructions until the end of the program.
     pub fn execute(&mut self) {
         while self.program_counter < self.program.len() {
             self.step();
         }
     }
 
+    // Getter methods for the UI to inspect the machine's state.
+    pub fn get_program_counter(&self) -> usize {
+        self.program_counter
+    }
+
+    pub fn get_program(&self) -> &Vec<Instruction> {
+        &self.program
+    }
+
+    pub fn get_stack(&self) -> &Vec<i32> {
+        &self.stack
+    }
+
+    pub fn push_value(&mut self, value: i32) {
+        self.stack.push(value);
+    }
+    
+    /// Handles the execution of a single instruction.
     fn perform_operation(&mut self, instruction: Instruction) {
         match instruction {
             // Stack Operations
-            Instruction::Push(value) => self.stack.push(value), // Push a value onto the stack
-            Instruction::Pop => { self.stack.pop(); }, // Remove the top value from the stack
+            Instruction::Push(value) => self.stack.push(value),
+            Instruction::Pop => {
+                self.stack.pop();
+            }
             Instruction::Dup => {
                 if let Some(&top) = self.stack.last() {
-                    self.stack.push(top); // Duplicate the top value of the stack
+                    self.stack.push(top);
                 }
-            },
+            }
             Instruction::Swap => {
                 if self.stack.len() >= 2 {
                     let len = self.stack.len();
-                    self.stack.swap(len - 1, len - 2); // Swap the top two values on the stack
+                    self.stack.swap(len - 1, len - 2);
                 }
-            },
+            }
             Instruction::Rot => {
                 if self.stack.len() >= 3 {
-                    let a = self.stack.pop().expect("Stack underflow"); // 1st element
-                    let b = self.stack.pop().expect("Stack underflow"); // 2nd element
-                    let c = self.stack.pop().expect("Stack underflow"); // 3rd element
+                    let a = self.stack.pop().expect("Stack underflow");
+                    let b = self.stack.pop().expect("Stack underflow");
+                    let c = self.stack.pop().expect("Stack underflow");
                     self.stack.push(a);
                     self.stack.push(c);
                     self.stack.push(b);
                 }
-            },
-            Instruction::Clear => self.stack.clear(), // Clear the entire stack
+            }
+            Instruction::Clear => self.stack.clear(),
 
             // Arithmetic
             Instruction::Add => self.binary_op(|a, b| a + b),
@@ -119,25 +159,40 @@ impl StackMachine {
             Instruction::Gt => self.binary_op(|a, b| if a > b { 1 } else { 0 }),
 
             // Control Flow
+            Instruction::Call(label) => {
+                // Placeholder: you could implement a call stack here.
+                self.output
+                    .push(format!("Call '{}' not implemented.", label));
+            }
+            Instruction::Ret => {
+                self.output.push("Ret not implemented.".to_string());
+            }
+            Instruction::Retv(value) => {
+                self.output
+                    .push(format!("Retv({}) not implemented.", value));
+            }
             Instruction::Jump(label) => {
                 if let Some(&pos) = self.labels.get(&label) {
-                    self.program_counter = pos; // Jump to the label's position
+                    self.program_counter = pos;
                 }
-            },
+            }
             Instruction::Brt(label) => {
                 if self.stack.pop().unwrap_or(0) != 0 {
                     if let Some(&pos) = self.labels.get(&label) {
-                        self.program_counter = pos; // Branch if the top value is nonzero
+                        self.program_counter = pos;
                     }
                 }
-            },
+            }
             Instruction::Brz(label) => {
                 if self.stack.pop().unwrap_or(0) == 0 {
                     if let Some(&pos) = self.labels.get(&label) {
-                        self.program_counter = pos; // Branch if the top value is zero
+                        self.program_counter = pos;
                     }
                 }
-            },
+            }
+            Instruction::Label(_) => {
+                // Labels serve only for jump targets and are no-ops at runtime.
+            }
             Instruction::Halt => {
                 self.program_counter = self.program.len();
             }
@@ -145,45 +200,41 @@ impl StackMachine {
             // Memory
             Instruction::Load(address) => {
                 let value = self.memory.get(&address).copied().unwrap_or(0);
-                self.stack.push(value); // Push the value at the given address
-            },
+                self.stack.push(value);
+            }
             Instruction::Store(address) => {
                 if let Some(value) = self.stack.pop() {
-                    self.memory.insert(address, value); // Store the top value at the given address
+                    self.memory.insert(address, value);
                 }
-            },
+            }
             Instruction::Alloc(size) => {
                 for i in 0..size {
-                    self.memory.insert(i, 0); // Allocate memory initialized to zero
+                    self.memory.insert(i, 0);
                 }
-            },
+            }
             Instruction::Free(address) => {
-                self.memory.remove(&address); // Free memory at the given address
-            },
+                self.memory.remove(&address);
+            }
 
             // I/O
             Instruction::Print => {
                 if let Some(&top) = self.stack.last() {
-                    println!("{}", top); // Print the top value of the stack
+                    self.output.push(format!("{}", top));
                 } else {
-                    println!("Stack is empty");
+                    self.output.push("Stack is empty".to_string());
                 }
-            },
+            }
             Instruction::Read => {
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).expect("Failed to read input");
-                if let Ok(value) = input.trim().parse::<i32>() {
-                    self.stack.push(value); // Read an integer and push it onto the stack
-                }
-            },
+                // Instead of blocking for input, signal to the UI.
+                self.input_request = Some("Enter a number:".to_string());
+            }
             Instruction::Write(message) => {
-                println!("{}", message); // Print the given message
-            },
+                self.output.push(message);
+            }
             Instruction::Scan => {
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).expect("Failed to read input");
-                println!("Scanned: {}", input.trim()); // Read a line and display it
-            },
+                // For demonstration purposes, behave like Read.
+                self.input_request = Some("Scan input:".to_string());
+            }
 
             // Bitwise/Logical
             Instruction::And => self.binary_op(|a, b| a & b),
@@ -196,18 +247,16 @@ impl StackMachine {
 
             // Debugging
             Instruction::Dump => {
-                println!("Stack: {:?}", self.stack); // Print the current stack
-                println!("Memory: {:?}", self.memory); // Print the current memory state
-            },
+                self.output.push(format!("Stack: {:?}", self.stack));
+                self.output.push(format!("Memory: {:?}", self.memory));
+            }
             Instruction::Trace(on) => {
                 if on {
-                    println!("Tracing enabled");
+                    self.output.push("Tracing enabled".to_string());
                 } else {
-                    println!("Tracing disabled");
+                    self.output.push("Tracing disabled".to_string());
                 }
-            },
-
-            _ => (),
+            }
         }
     }
 
@@ -215,16 +264,16 @@ impl StackMachine {
     where
         F: Fn(i32, i32) -> i32,
     {
-        let b = self.stack.pop().expect("Stack underflow"); // Pop the second operand
-        let a = self.stack.pop().expect("Stack underflow"); // Pop the first operand
-        self.stack.push(op(a, b)); // Apply the operation and push the result
+        let b = self.stack.pop().expect("Stack underflow");
+        let a = self.stack.pop().expect("Stack underflow");
+        self.stack.push(op(a, b));
     }
 
     fn unary_op<F>(&mut self, op: F)
     where
         F: Fn(i32) -> i32,
     {
-        let a = self.stack.pop().expect("Stack underflow"); // Pop the operand
-        self.stack.push(op(a)); // Apply the operation and push the result
+        let a = self.stack.pop().expect("Stack underflow");
+        self.stack.push(op(a));
     }
 }
